@@ -131,8 +131,15 @@ register_collectors(Registry, Collectors) ->
   [register_collector(Registry, Collector) || Collector <- Collectors],
   ok.
 
-%% @equiv deregister_collector(default, Collector)
--spec deregister_collector(Collector :: prometheus_collector:collector()) -> ok.
+%% @doc
+%% Deregister Collector with with `{Registry, Collector}' or `Collector'.
+%% For `Collector' without registry, `default' is used.
+%% @end
+-spec deregister_collector(Collector |  {Registry, Collector}) -> ok when
+    Registry  :: prometheus_registry:registry(),
+    Collector :: prometheus_collector:collector().
+deregister_collector({Registry, Collector}) ->
+  deregister_collector(Registry, Collector);
 deregister_collector(Collector) ->
   deregister_collector(default, Collector).
 
