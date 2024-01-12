@@ -95,8 +95,15 @@ collect(Registry, Callback) ->
 collectors(Registry) ->
   [Collector || {_, Collector} <- ets:lookup(?TABLE, Registry)].
 
-%% @equiv register_collector(default, Collector)
--spec register_collector(Collector :: prometheus_collector:collector()) -> ok.
+%% @doc
+%% Register Collector with with `{Registry, Collector}' or `Collector'.
+%% For `Collector' without registry, `default' is used.
+%% @end
+-spec register_collector(Collector |  {Registry, Collector}) -> ok when
+    Registry  :: prometheus_registry:registry(),
+    Collector :: prometheus_collector:collector().
+register_collector({Registry, Collector}) ->
+  register_collector(Registry, Collector);
 register_collector(Collector) ->
   register_collector(default, Collector).
 
@@ -107,11 +114,14 @@ register_collector(Registry, Collector) ->
   ets:insert(?TABLE, {Registry, Collector}),
   ok.
 
--spec register_collectors(Collectors :: [prometheus_collector:collector()])
-                         -> ok.
-%% @equiv register_collectors(default, Collectors)
+-spec register_collectors(Collectors :: [Collector | {Registry, Collector}]) -> ok when
+    Registry :: prometheus_registry:registry(),
+    Collector :: prometheus_collector:collector().
+%% @doc
+%% Register each Element in `Collectors' in format `{Registry, Collector}' or `Collector'
+%% @end
 register_collectors(Collectors) ->
-  register_collectors(default, Collectors).
+  lists:foreach(fun register_collector/1, Collectors).
 
 %% @doc Registers collectors list.
 -spec register_collectors(Registry :: prometheus_registry:registry(),
