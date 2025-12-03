@@ -36,7 +36,7 @@ defmodule Prometheus.Mixfile do
 
   defp deps do
     [
-      {:quantile_estimator, "~> 0.2.1"}
+      {:quantile_estimator, "~> 1.0.2"}
     ]
   end
 end

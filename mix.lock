@@ -1,3 +1,3 @@
 %{
-  "quantile_estimator": {:hex, :quantile_estimator, "0.2.1", "ef50a361f11b5f26b5f16d0696e46a9e4661756492c981f7b2229ef42ff1cd15", [:rebar3], [], "hexpm", "282a8a323ca2a845c9e6f787d166348f776c1d4a41ede63046d72d422e3da946"},
+  "quantile_estimator": {:hex, :quantile_estimator, "1.0.2", "ecd281d40110fdd9ba62685531e4435e0839a52fd1058da5564f1763e4642ef7", [:rebar3], [], "hexpm", "db404793d6384995a1ac6dd973e2cee5be9fcc128765bdba53d87c564e296b64"},
 }

@@ -9,13 +9,13 @@ jobs:
     strategy:
       matrix:
         otp:
-          - 24
-          - 25
+          - 27
+          - 28
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.otp}}
-          rebar3-version: 3.20.0
+          rebar3-version: 3.22.0
       - name: Run checks
-        run: ./bin/checks.sh
+        run: rebar3 do xref, dialyzer, eunit
