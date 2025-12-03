@@ -39,7 +39,7 @@
          ensure_binary_or_string/1]).
 -endif.
 
--export_type([prometheus_boolean/0]).
+-export_type([prometheus_boolean/0, label_value/0]).
 
 -include("prometheus_model.hrl").
 

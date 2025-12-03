@@ -1,21 +1,24 @@
 ---
 name: ci
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   run_checks:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        otp:
-          - 24
-          - 25
+        erlang:
+          - otp: "27"
+            rebar3: "3.24"
+          - otp: "28"
+            rebar3: "3.25"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
         with:
-          otp-version: ${{matrix.otp}}
-          rebar3-version: 3.20.0
+          otp-version: ${{matrix.erlang.otp}}
+          rebar3-version: ${{matrix.erlang.rebar3}}
       - name: Run checks
-        run: ./bin/checks.sh
+        run: rebar3 do xref, dialyzer, eunit
