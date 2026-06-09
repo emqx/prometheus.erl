@@ -66,8 +66,6 @@ dist_test_cases(Context) ->
         test_transport_metrics(Context)
     ]).
 
--if(?OTP_RELEASE >= 25).
-
 start_dist_test_peers(Proto) ->
     Args = code_path_args() ++ dist_args(Proto),
     Options = #{
@@ -115,24 +113,6 @@ tls_dist_file(Name) ->
 
 code_path_args() ->
     lists:flatmap(fun(Path) -> ["-pa", Path] end, code:get_path()).
-
--else.
-
-start_dist_test_peers(inet_tcp) ->
-    os:cmd("erl -sname test"),
-    {ok, _} = net_kernel:start([prometheus_dist_collector, shortnames]),
-    {ok, NodeA} = ct_slave:start(prometheus_dist_collector_peer_a),
-    {ok, NodeB} = ct_slave:start(prometheus_dist_collector_peer_b),
-    pong = rpc:call(NodeA, net_adm, ping, [NodeB], 5000),
-    pong = rpc:call(NodeB, net_adm, ping, [NodeA], 5000),
-    {inet_tcp, ct_slave, NodeA, NodeB}.
-
-stop_dist_test_peers({inet_tcp, ct_slave, NodeA, NodeB}) ->
-    ct_slave:stop(NodeB),
-    ct_slave:stop(NodeA),
-    ok = net_kernel:stop().
-
--endif.
 
 collect_metrics(default) ->
     collect_metrics(fun() -> ok end, fun() -> ok end);
@@ -327,12 +307,8 @@ test_transport_metrics({inet_tls, _PeerA, _PeerB, _NodeA, _NodeB} = Context) ->
         )
     ];
 test_transport_metrics({inet_tcp, _PeerA, _PeerB, _NodeA, _NodeB}) ->
-    [];
-test_transport_metrics({inet_tcp, ct_slave, _NodeA, _NodeB}) ->
     [].
 
-collect_peer_metrics({_Proto, ct_slave, NodeA, _NodeB}, Kind) ->
-    rpc:call(NodeA, ?MODULE, collect_metrics, [Kind], 5000);
 collect_peer_metrics({_Proto, PeerA, _PeerB, _NodeA, _NodeB}, Kind) ->
     peer:call(PeerA, ?MODULE, collect_metrics, [Kind], 5000).
 
