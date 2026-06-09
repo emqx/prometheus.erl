@@ -3,7 +3,7 @@
     {vsn, git},
     {registered, []},
     {mod, {prometheus, []}},
-    {applications, [kernel, stdlib, ddskerl]},
+    {applications, [kernel, stdlib, ssl, ddskerl]},
     {env, []},
     {modules, []},
     {description, "Prometheus monitoring system and time series database client in Erlang."},
