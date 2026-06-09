@@ -44,18 +44,9 @@ prometheus_dist_tcp_test_() ->
     {setup, fun() -> start_dist_test_peers(inet_tcp) end, fun stop_dist_test_peers/1,
         fun dist_test_cases/1}.
 
--if(?OTP_RELEASE >= 27).
-
 prometheus_dist_tls_test_() ->
     {setup, fun() -> start_dist_test_peers(inet_tls) end, fun stop_dist_test_peers/1,
         fun dist_test_cases/1}.
-
--else.
-
-prometheus_dist_tls_test_() ->
-    [].
-
--endif.
 
 dist_test_cases(Context) ->
     lists:append([

@@ -310,13 +310,17 @@ tcp_port_info(Links, Acc) when is_list(Links) ->
             Acc
     end.
 
+-if(?OTP_RELEASE > 26).
+
 tls_link_info(Links, Acc) ->
+    %% 1. Find linked TLS sender and its TLS connection controller:
     TLSProcesses = [
         {P, R}
      || P <- Links,
         is_pid(P),
         {tls_sender, _, {connection, R}} <- [proc_lib:get_label(P)]
     ],
+    %% 2. Find TCP port linked to TLS connection controller, gather stats directly:
     case TLSProcesses of
         [{Sender, Receiver} | _] ->
             tcp_port_info(Receiver, Acc#{
@@ -326,6 +330,51 @@ tls_link_info(Links, Acc) ->
         [] ->
             Acc
     end.
+
+-endif.
+
+-if(?OTP_RELEASE =:= 26).
+tls_link_info(Links, Acc0) ->
+    %% 1. Find linked TLS sender:
+    TLSProcesses = [
+        P
+     || P <- Links,
+        is_pid(P),
+        {tls_sender, init, _} <- [proc_lib:translate_initial_call(P)]
+    ],
+    case TLSProcesses of
+        [Sender | _] ->
+            %% 2. Find its TLS socket:
+            {ok, Socket} = tls_sender:dist_tls_socket(Sender),
+            %% 3. Gather statistics for the TLS socket:
+            {ok, InetStats} = ssl:getstat(Socket, ?INET_STATS),
+            Acc =
+                case Socket of
+                    %% 4. If it's an `#sslsocket{}`, find TLS connection and raw port:
+                    {sslsocket, FD, [Receiver | _]} ->
+                        case tcp_inet_port(tuple_to_list(FD)) of
+                            {ok, Port} ->
+                                Acc0#{
+                                    tls_connection_pid => Receiver,
+                                    dist_port => Port
+                                };
+                            false ->
+                                Acc0#{
+                                    tls_connection_pid => Receiver
+                                }
+                        end;
+                    _ ->
+                        Acc0
+                end,
+            Acc#{
+                inet_stats => InetStats,
+                tls_sender_pid => Sender
+            };
+        [] ->
+            Acc0
+    end.
+
+-endif.
 
 tcp_inet_port(Links) ->
     Ports = [P || P <- Links, is_port(P), erlang:port_info(P, name) == {name, "tcp_inet"}],
