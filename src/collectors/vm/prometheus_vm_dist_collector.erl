@@ -148,6 +148,19 @@ By default all metrics are enabled.
 
 -define(METRIC_NAME_PREFIX, "erlang_vm_dist_").
 
+-define(INET_STATS, [
+    recv_oct,
+    recv_cnt,
+    recv_max,
+    recv_avg,
+    recv_dvi,
+    send_oct,
+    send_cnt,
+    send_max,
+    send_avg,
+    send_pend
+]).
+
 ?DOC(false).
 -spec deregister_cleanup(prometheus_registry:registry()) -> ok.
 deregister_cleanup(_) ->
@@ -258,83 +271,67 @@ enabled_metrics() ->
 metric_enabled(Name, Metrics) ->
     Metrics =:= all orelse lists:member(Name, Metrics).
 
--compile(nowarn_untyped_record).
--include_lib("kernel/include/net_address.hrl").
-
 dist_info() ->
     {ok, NodesInfo} = net_kernel:nodes_info(),
-    AllPorts = [{P, erlang:port_info(P)} || P <- erlang:ports()],
-    [dist_info(NodeInfo, AllPorts) || NodeInfo <- NodesInfo].
+    [dist_info(NodeInfo) || NodeInfo <- NodesInfo].
 
-dist_info({Node, Info}, AllPorts) ->
+dist_info({Node, Info}) ->
     DistPid = proplists:get_value(owner, Info),
-    NodeState = proplists:get_value(state, Info),
-    case proplists:get_value(address, Info, #net_address{}) of
-        #net_address{address = undefined} ->
-            {Node, #{
-                dist_pid => DistPid,
-                node_state => NodeState
-            }};
-        #net_address{address = SockName} ->
-            dist_info(Node, AllPorts, DistPid, NodeState, SockName)
+    {Node,
+        dist_link_info(DistPid, #{
+            node_state => proplists:get_value(state, Info)
+        })}.
+
+dist_link_info(DistPid, Acc0) ->
+    case is_pid(DistPid) andalso process_info(DistPid, links) of
+        {links, Links} ->
+            Acc1 = Acc0#{dist_pid => DistPid},
+            Acc2 = tcp_port_info(Links, Acc1),
+            Acc = tls_link_info(Links, Acc2),
+            Acc;
+        _ ->
+            Acc0
     end.
 
-dist_info(Node, AllPorts, DistPid, NodeState, SockName) ->
-    case
-        [
-            P
-         || {P, I} <- AllPorts,
-            I =/= undefined,
-            proplists:get_value(name, I) =:= "tcp_inet",
-            inet:peername(P) =:= {ok, SockName}
-        ]
-    of
-        [] ->
-            {Node, #{
-                dist_pid => DistPid,
-                node_state => NodeState
-            }};
-        [DistPort] ->
-            {ok, InetStats} = inet:getstat(DistPort),
-            Map =
-                case erlang:port_info(DistPort, connected) of
-                    {_, DistPid} -> #{};
-                    {_, ConnectedPid} -> dist_tls_info(ConnectedPid)
-                end,
-            {Node, Map#{
+tcp_port_info(Pid, Acc) when is_pid(Pid) ->
+    case process_info(Pid, links) of
+        {links, Links} -> tcp_port_info(Links, Acc);
+        undefined -> Acc
+    end;
+tcp_port_info(Links, Acc) when is_list(Links) ->
+    case tcp_inet_port(Links) of
+        {ok, DistPort} ->
+            {ok, InetStats} = inet:getstat(DistPort, ?INET_STATS),
+            Acc#{
                 inet_stats => InetStats,
-                dist_port => DistPort,
-                dist_pid => DistPid,
-                node_state => NodeState
-            }}
+                dist_port => DistPort
+            };
+        false ->
+            Acc
     end.
 
-dist_tls_info(MaybeTlsConnPid) ->
-    {_, CDict} = process_info(MaybeTlsConnPid, dictionary),
-    case lists:keyfind('$initial_call', 1, CDict) of
-        %% This is the right process: add it to the map and try to find
-        %% the tls_sender process as well.
-        {_, {tls_connection, init, 1}} ->
-            dist_tls_sender_info(
-                MaybeTlsConnPid,
-                #{tls_connection_pid => MaybeTlsConnPid}
-            );
-        _ ->
-            #{}
+tls_link_info(Links, Acc) ->
+    TLSProcesses = [
+        {P, R}
+     || P <- Links,
+        is_pid(P),
+        {tls_sender, _, {connection, R}} <- [proc_lib:get_label(P)]
+    ],
+    case TLSProcesses of
+        [{Sender, Receiver} | _] ->
+            tcp_port_info(Receiver, Acc#{
+                tls_connection_pid => Receiver,
+                tls_sender_pid => Sender
+            });
+        [] ->
+            Acc
     end.
 
-dist_tls_sender_info(TlsConnPid, Map) ->
-    case process_info(TlsConnPid, links) of
-        {_, [MaybeTlsSenderPid | _]} when is_pid(MaybeTlsSenderPid) ->
-            {_, SDict} = process_info(MaybeTlsSenderPid, dictionary),
-            case lists:keyfind('$initial_call', 1, SDict) of
-                {_, {tls_sender, init, 1}} ->
-                    Map#{tls_sender_pid => MaybeTlsSenderPid};
-                _ ->
-                    Map
-            end;
-        _ ->
-            Map
+tcp_inet_port(Links) ->
+    Ports = [P || P <- Links, is_port(P), erlang:port_info(P, name) == {name, "tcp_inet"}],
+    case Ports of
+        [Port | _] -> {ok, Port};
+        [] -> false
     end.
 
 metric(inet, Key, Data) ->
