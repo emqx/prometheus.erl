@@ -47,6 +47,15 @@ the distribution transport: `type=\"dist\"`, `type=\"tls_connection\"` or `type=
 * `erlang_vm_dist_send_pend_bytes`
   Type: gauge.
   Number of bytes waiting to be sent by the socket.
+* `erlang_vm_dist_sock_buffer_bytes`
+  Type: gauge.
+  Size of the driver-side socket buffer, in bytes.
+* `erlang_vm_dist_sock_sndbuf_bytes`
+  Type: gauge.
+  Size of the kernel-side socket send buffer, in bytes.
+* `erlang_vm_dist_sock_recbuf_bytes`
+  Type: gauge.
+  Size of the kernel-side socket receive buffer, in bytes.
 * `erlang_vm_dist_port_input_bytes`
   Type: gauge.
   The total number of bytes read from the port.
@@ -101,6 +110,9 @@ the distribution transport: `type=\"dist\"`, `type=\"tls_connection\"` or `type=
   Type: gauge.
   The number of bytes in the output distribution queue.
   This queue sits between the Erlang code and the port driver.
+* `erlang_vm_dist_buffer_busy_limit_bytes`
+  Type: gauge.
+  The distribution buffer busy limit, in bytes.
 
 ### Configuration
 
@@ -119,6 +131,9 @@ Available options:
 * `send_max_bytes` for `erlang_vm_dist_send_max_bytes`.
 * `send_avg_bytes` for `erlang_vm_dist_send_avg_bytes`.
 * `send_pend_bytes` for `erlang_vm_dist_send_pend_bytes`.
+* `sock_buffer_bytes` for `erlang_vm_dist_sock_buffer_bytes`.
+* `sock_sndbuf_bytes` for `erlang_vm_dist_sock_sndbuf_bytes`.
+* `sock_recbuf_bytes` for `erlang_vm_dist_sock_recbuf_bytes`.
 * `port_input_bytes` for `erlang_vm_dist_port_input_bytes`.
 * `port_output_bytes` for `erlang_vm_dist_port_output_bytes`.
 * `port_memory_bytes` for `erlang_vm_dist_port_memory_bytes`.
@@ -134,6 +149,7 @@ Available options:
 * `proc_status` for `erlang_vm_dist_proc_status`.
 * `node_state` for `erlang_vm_dist_node_state`.
 * `node_queue_size_bytes` for `erlang_vm_dist_node_queue_size_bytes`.
+* `buffer_busy_limit_bytes` for `erlang_vm_dist_buffer_busy_limit_bytes`.
 
 By default all metrics are enabled.
 """).
@@ -159,6 +175,12 @@ By default all metrics are enabled.
     send_max,
     send_avg,
     send_pend
+]).
+
+-define(INET_OPTS, [
+    buffer,
+    sndbuf,
+    recbuf
 ]).
 
 ?DOC(false).
@@ -215,6 +237,12 @@ metrics1() ->
             metric(inet, send_avg, Data)},
         {send_pend_bytes, gauge, "Number of bytes waiting to be sent by the socket.",
             metric(inet, send_pend, Data)},
+        {sock_buffer_bytes, gauge, "Size of the driver-side socket buffer, in bytes.",
+            metric(inet, buffer, Data)},
+        {sock_sndbuf_bytes, gauge, "Size of the kernel-side socket send buffer, in bytes.",
+            metric(inet, sndbuf, Data)},
+        {sock_recbuf_bytes, gauge, "Size of the kernel-side socket receive buffer, in bytes.",
+            metric(inet, recbuf, Data)},
         {port_input_bytes, gauge, "The total number of bytes read from the port.",
             metric(port, input, Data)},
         {port_output_bytes, gauge, "The total number of bytes written to the port.",
@@ -262,7 +290,9 @@ metrics1() ->
         {node_queue_size_bytes, gauge,
             "The number of bytes in the output distribution queue. "
             "This queue sits between the Erlang code and the port driver.",
-            metric_node_queue_size(Data)}
+            metric_node_queue_size(Data)},
+        {buffer_busy_limit_bytes, gauge, "The distribution buffer busy limit, in bytes.",
+            metric_dist_buf_busy_limit()}
     ].
 
 enabled_metrics() ->
@@ -300,11 +330,12 @@ tcp_port_info(Pid, Acc) when is_pid(Pid) ->
     end;
 tcp_port_info(Links, Acc) when is_list(Links) ->
     case tcp_inet_port(Links) of
-        {ok, DistPort} ->
-            {ok, InetStats} = inet:getstat(DistPort, ?INET_STATS),
+        {ok, Port} ->
+            {ok, Stats} = inet:getstat(Port, ?INET_STATS),
+            {ok, Opts} = inet:getopts(Port, ?INET_OPTS),
             Acc#{
-                inet_stats => InetStats,
-                dist_port => DistPort
+                inet_stats => Opts ++ Stats,
+                dist_port => Port
             };
         false ->
             Acc
@@ -347,7 +378,8 @@ tls_link_info(Links, Acc0) ->
             %% 2. Find its TLS socket:
             {ok, Socket} = tls_sender:dist_tls_socket(Sender),
             %% 3. Gather statistics for the TLS socket:
-            {ok, InetStats} = ssl:getstat(Socket, ?INET_STATS),
+            {ok, Stats} = ssl:getstat(Socket, ?INET_STATS),
+            {ok, Opts} = ssl:getopts(Socket, ?INET_OPTS),
             Acc =
                 case Socket of
                     %% 4. If it's an `#sslsocket{}`, find TLS connection and raw port:
@@ -367,7 +399,7 @@ tls_link_info(Links, Acc0) ->
                         Acc0
                 end,
             Acc#{
-                inet_stats => InetStats,
+                inet_stats => Opts ++ Stats,
                 tls_sender_pid => Sender
             };
         [] ->
@@ -444,6 +476,9 @@ metric_node_queue_size(Data) ->
         {[{peer, Node}], node_queue_size(Node)}
      || {Node, _} <- Data
     ].
+
+metric_dist_buf_busy_limit() ->
+    [{[], erlang:system_info(dist_buf_busy_limit)}].
 
 node_queue_size(Node) ->
     ConnId = ets:lookup_element(sys_dist, Node, 3),

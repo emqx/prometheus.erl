@@ -23,6 +23,9 @@ test_no_distribution(_) ->
         ?_assertMatch(nomatch, re:run(Metrics, "erlang_vm_dist_send_max_bytes")),
         ?_assertMatch(nomatch, re:run(Metrics, "erlang_vm_dist_send_avg_bytes")),
         ?_assertMatch(nomatch, re:run(Metrics, "erlang_vm_dist_send_pend_bytes")),
+        ?_assertMatch(nomatch, re:run(Metrics, "erlang_vm_dist_sock_buffer_bytes")),
+        ?_assertMatch(nomatch, re:run(Metrics, "erlang_vm_dist_sock_sndbuf_bytes")),
+        ?_assertMatch(nomatch, re:run(Metrics, "erlang_vm_dist_sock_recbuf_bytes")),
         ?_assertMatch(nomatch, re:run(Metrics, "erlang_vm_dist_port_input_bytes")),
         ?_assertMatch(nomatch, re:run(Metrics, "erlang_vm_dist_port_output_bytes")),
         ?_assertMatch(nomatch, re:run(Metrics, "erlang_vm_dist_port_memory_bytes")),
@@ -37,7 +40,8 @@ test_no_distribution(_) ->
         ?_assertMatch(nomatch, re:run(Metrics, "erlang_vm_dist_proc_reductions")),
         ?_assertMatch(nomatch, re:run(Metrics, "erlang_vm_dist_proc_status")),
         ?_assertMatch(nomatch, re:run(Metrics, "erlang_vm_dist_node_state")),
-        ?_assertMatch(nomatch, re:run(Metrics, "erlang_vm_dist_node_queue_size_bytes"))
+        ?_assertMatch(nomatch, re:run(Metrics, "erlang_vm_dist_node_queue_size_bytes")),
+        ?_assertMatch(nomatch, re:run(Metrics, "erlang_vm_dist_buffer_busy_limit_bytes"))
     ].
 
 prometheus_dist_tcp_test_() ->
@@ -124,6 +128,9 @@ collect_metrics(all) ->
                     send_max_bytes,
                     send_avg_bytes,
                     send_pend_bytes,
+                    sock_buffer_bytes,
+                    sock_sndbuf_bytes,
+                    sock_recbuf_bytes,
                     port_input_bytes,
                     port_output_bytes,
                     port_memory_bytes,
@@ -138,7 +145,8 @@ collect_metrics(all) ->
                     proc_reductions,
                     proc_status,
                     node_state,
-                    node_queue_size_bytes
+                    node_queue_size_bytes,
+                    buffer_busy_limit_bytes
                 ]
             )
         end,
@@ -152,11 +160,13 @@ collect_metrics(custom) ->
                 recv_dvi_bytes,
                 send_max_bytes,
                 send_pend_bytes,
+                sock_buffer_bytes,
                 port_memory_bytes,
                 proc_memory_bytes,
                 proc_reductions,
                 proc_status,
-                node_state
+                node_state,
+                buffer_busy_limit_bytes
             ])
         end,
         fun() -> application:unset_env(prometheus, vm_dist_collector_metrics) end
@@ -245,6 +255,9 @@ test_custom_metrics(Context) ->
         ?_assertMetric({match, _}, "erlang_vm_dist_send_max_bytes", Metrics),
         ?_assertMetric(nomatch, "erlang_vm_dist_send_avg_bytes", Metrics),
         ?_assertMetric({match, _}, "erlang_vm_dist_send_pend_bytes", Metrics),
+        ?_assertMetric({match, _}, "erlang_vm_dist_sock_buffer_bytes", Metrics),
+        ?_assertMetric(nomatch, "erlang_vm_dist_sock_sndbuf_bytes", Metrics),
+        ?_assertMetric(nomatch, "erlang_vm_dist_sock_recbuf_bytes", Metrics),
         ?_assertMetric(nomatch, "erlang_vm_dist_port_input_bytes", Metrics),
         ?_assertMetric(nomatch, "erlang_vm_dist_port_output_bytes", Metrics),
         ?_assertMetric({match, _}, "erlang_vm_dist_port_memory_bytes", Metrics),
@@ -259,7 +272,8 @@ test_custom_metrics(Context) ->
         ?_assertMetric({match, _}, "erlang_vm_dist_proc_reductions", Metrics),
         ?_assertMetric({match, _}, "erlang_vm_dist_proc_status", Metrics),
         ?_assertMetric({match, _}, "erlang_vm_dist_node_state", Metrics),
-        ?_assertMetric(nomatch, "erlang_vm_dist_node_queue_size_bytes", Metrics)
+        ?_assertMetric(nomatch, "erlang_vm_dist_node_queue_size_bytes", Metrics),
+        ?_assertMetric({match, _}, "erlang_vm_dist_buffer_busy_limit_bytes", Metrics)
     ].
 
 test_global_labels(Context) ->
@@ -315,6 +329,9 @@ assert_default_metrics(Metrics) ->
         ?_assertMetric({match, _}, "erlang_vm_dist_send_max_bytes\\{peer=", Metrics),
         ?_assertMetric({match, _}, "erlang_vm_dist_send_avg_bytes\\{peer=", Metrics),
         ?_assertMetric({match, _}, "erlang_vm_dist_send_pend_bytes\\{peer=", Metrics),
+        ?_assertMetric({match, _}, "erlang_vm_dist_sock_buffer_bytes\\{peer=", Metrics),
+        ?_assertMetric({match, _}, "erlang_vm_dist_sock_sndbuf_bytes\\{peer=", Metrics),
+        ?_assertMetric({match, _}, "erlang_vm_dist_sock_recbuf_bytes\\{peer=", Metrics),
         ?_assertMetric({match, _}, "erlang_vm_dist_port_input_bytes\\{peer=", Metrics),
         ?_assertMetric({match, _}, "erlang_vm_dist_port_output_bytes\\{peer=", Metrics),
         ?_assertMetric({match, _}, "erlang_vm_dist_port_memory_bytes\\{peer=", Metrics),
@@ -329,5 +346,6 @@ assert_default_metrics(Metrics) ->
         ?_assertMetric({match, _}, "erlang_vm_dist_proc_reductions\\{peer=", Metrics),
         ?_assertMetric({match, _}, "erlang_vm_dist_proc_status\\{peer=", Metrics),
         ?_assertMetric({match, _}, "erlang_vm_dist_node_state\\{peer=", Metrics),
-        ?_assertMetric({match, _}, "erlang_vm_dist_node_queue_size_bytes\\{peer=", Metrics)
+        ?_assertMetric({match, _}, "erlang_vm_dist_node_queue_size_bytes\\{peer=", Metrics),
+        ?_assertMetric({match, _}, "erlang_vm_dist_buffer_busy_limit_bytes", Metrics)
     ].
