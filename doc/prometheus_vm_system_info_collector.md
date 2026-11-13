@@ -30,6 +30,10 @@ The number of dirty CPU scheduler threads online.
 Type: gauge.<br />
 The number of scheduler dirty I/O scheduler threads used by the emulator.
 
+* `erlang_vm_ets_limit`<br />
+Type: gauge.<br />
+The maximum number of ETS tables allowed.
+
 * `erlang_vm_logical_processors`<br />
 Type: gauge.<br />
 The detected number of logical processors configured in the system.
@@ -113,6 +117,8 @@ Options are the same as Item parameter values for
 [
 erlang:system_info/1
 ](http://erlang.org/doc/man/erlang.md#system_info-1):
+
+* `ets_limit` for `erlang_vm_ets_limit`.
 
 * `logical_processors` for `erlang_vm_logical_processors`.
 

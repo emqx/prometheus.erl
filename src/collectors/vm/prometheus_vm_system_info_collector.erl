@@ -22,6 +22,11 @@
 %%     The number of scheduler dirty I/O scheduler threads used by the emulator.
 %%   </li>
 %%   <li>
+%%     `erlang_vm_ets_limit'<br/>
+%%     Type: gauge.<br/>
+%%     The maximum number of ETS tables allowed.
+%%   </li>
+%%   <li>
 %%     `erlang_vm_logical_processors'<br/>
 %%     Type: gauge.<br/>
 %%     The detected number of logical processors configured in the system.
@@ -122,6 +127,9 @@
 %%   erlang:system_info/1
 %% </a>:
 %% <ul>
+%%   <li>
+%%     `ets_limit' for `erlang_vm_ets_limit'.
+%%   </li>
 %%   <li>
 %%     `logical_processors' for `erlang_vm_logical_processors'.
 %%   </li>
@@ -235,6 +243,8 @@ metrics() ->
    {dirty_io_schedulers, gauge,
     "The number of scheduler dirty I/O scheduler "
     "threads used by the emulator."},
+   {ets_limit, gauge,
+    "The maximum number of ETS tables allowed."},
    {logical_processors, gauge,
     "The detected number of logical processors "
     "configured in the system."},
