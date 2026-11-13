@@ -21,6 +21,9 @@ Collects Erlang VM metrics using `erlang:system_info/1`.
 * `erlang_vm_dirty_io_schedulers`
   Type: gauge.
   The number of scheduler dirty I/O scheduler threads used by the emulator.
+* `erlang_vm_ets_limit`
+  Type: gauge.
+  The maximum number of ETS tables allowed.
 * `erlang_vm_logical_processors`
   Type: gauge.
   The detected number of logical processors configured in the system.
@@ -81,6 +84,7 @@ of the `prometheus` app environment.
 
 Options are the same as Item parameter values for `erlang:system_info/1`:
 
+* `ets_limit` for `erlang_vm_ets_limit`.
 * `logical_processors` for `erlang_vm_logical_processors`.
 * `logical_processors_available` for `erlang_vm_logical_processors_available`.
 * `logical_processors_online` for `erlang_vm_logical_processors_online`.
@@ -149,6 +153,7 @@ metrics() ->
         {dirty_io_schedulers, gauge,
             "The number of scheduler dirty I/O scheduler "
             "threads used by the emulator."},
+        {ets_limit, gauge, "The maximum number of ETS tables allowed."},
         {logical_processors, gauge,
             "The detected number of logical processors "
             "configured in the system."},
